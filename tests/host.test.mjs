@@ -10,6 +10,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { apply } from '../index.js'
 
+// 磁盘扫描会读本机真实的技能目录，测试里关掉，保证断言只看桩数据。
+process.env.DSH_SKILL_MENU_DISK_SCAN = '0'
+
 const makeCtx = (list, options = {}) => {
   let route
   const ctx = {
@@ -112,4 +115,27 @@ test('answers loopback only, so a direct LAN peer gets 403', async () => {
   const response = await call(route(), '/dsh-skill-menu/list', 'GET', '192.168.1.40')
   assert.equal(response.status, 403)
   assert.equal(response.body.ok, false)
+})
+
+test('reports how many skills still lack a Chinese note', async () => {
+  const { ctx, route } = makeCtx(async () => sample)
+  apply(ctx)
+  const response = await call(route(), '/dsh-skill-menu/list?sessionId=s1')
+  assert.equal(response.body.zhPending, 2, 'two English descriptions are still untranslated')
+  assert.equal(response.body.zhAvailable, false, 'no translator and no llm service in this stub')
+})
+
+test('uses a Chinese description the skill author already wrote', async () => {
+  const { ctx, route } = makeCtx(async () => [{
+    name: 'native-zh',
+    description: '读写画布文件，查看现状并结构化改图，支持导出图片和视频帧序列。',
+    source: 'user-dsh',
+    provider: 'fs',
+  }])
+  apply(ctx)
+  const response = await call(route(), '/dsh-skill-menu/list?sessionId=s1')
+  const row = response.body.skills[0]
+  assert.equal(row.zhSource, 'native')
+  assert.match(row.zh, /读写画布文件/)
+  assert.equal(response.body.zhPending, 0)
 })

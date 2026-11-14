@@ -22,7 +22,13 @@
 
 - 插件内置 `CATALOG`：43 条中文卡片，字段 `short`（做什么）、`scene`（什么时候用）、`when[]`（触发场景，2–3 条）、`io`（需要什么 · 得到什么）。
 - 悬停面板：名称 → 一句话作用 → 「什么时候用」列表 → 「需要什么 · 得到什么」，放不下时自动翻到左侧。
-- 未收录的 skill 退回它自己的 `description`，英文的如实标注「暂未收录中文说明」，不编造假翻译。
+- 未收录的 skill 由宿主自动补中文，不需要手动改词表：
+  - 作者自己写了中文说明的原样采用（中文字符 ≥ 12 且占比 ≥ 20%，避免「英文里夹中文词」误判）；
+  - 否则查 `~/.dsh/skill-menu/zh.json`（键 = 名称，值 = `{ signature, zh, at }`，`signature` 是「说明 + whenToUse」的 sha1 前 16 位）；
+  - 仍未命中就走本机默认模型：`llm.stream()`，`agentDefaultModel.currentSelection()` 取 provider/model，一次批量 12 条，要求模型输出 `{"items":[{"name","zh"}]}`，只收 `{"做什么"}` 这一句，温度 0、60 秒超时；
+  - 装了提供 `translator` 服务的 bundle 时优先用它（免费、不消耗会话模型），逐条翻译；
+  - 两条路都失败时保留原文，行内标「说明翻译中」，面板按 `zhPending` 每 1.5 秒重拉，最多 60 次；
+  - 后台批量有单飞锁 `llmBusy`，失败后 10 分钟内不再重试（`llmFailAt`），不会反复烧调用。
 
 ### 点击
 
@@ -59,7 +65,7 @@
 ## 限制
 
 - 数据路由 `/dsh-skill-menu/list` **只接受本机回环请求**，非回环 403；非 GET 405。
-- 中文说明是内置词表，新增 skill 需补一条；未补的显示原文并标注。
+- 自动中文说明要花一次本机模型调用（12 条/批，结果落盘复用）；没有可用模型时退回英文原文并标注「说明翻译中」，不编造。
 - 使用次数、置顶只存本机 `localStorage`，换机器/清缓存即丢。
 - 面板在上次打开时拉取列表，缓存在本次页面会话；面板内错误行带「重试」。
 - 不读取、不修改 skill 文件本身。
@@ -74,3 +80,5 @@
 - `agents.get()` 的 id 带 `session-` 前缀，而客户端拿到的 `props.sessionId` 是裸 uuid，所以要依次尝试原值、`session-<uuid>`、后缀匹配。
 - 自家 `dsh-skills-manager` 的外部技能通过 `provider === 'dsh-skills-manager-external'` 识别，并在 `~/.dsh/skills-manager` 里补扫磁盘 `SKILL.md`；这类行标「技能管家」。
 - 面板定位：`position: fixed` + 触发器的 `getBoundingClientRect()` 算 `left`，`bottom = innerHeight - rect.top + 8`，高度上限 `min(520, rect.top - 24)`；实测该组合在 Electron 窗口里视觉位置与命中位置一致。
+- 自动中文说明的缓存写在 `~/.dsh/skill-menu/zh.json`（`{version:1, entries:{name:{signature, zh, at}}}`），合并写盘（400ms 防抖），写失败只影响下次启动。
+- 中文说明判定用 `looksChinese()`，不用简单的 `/\u3400-\u9fff/` 命中：`kimi-webbridge` 这类「英文 + 括号里几个中文词」的描述必须送去翻译，否则面板里显示的还是英文。

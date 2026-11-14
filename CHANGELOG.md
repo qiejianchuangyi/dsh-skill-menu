@@ -4,6 +4,26 @@ All notable changes to this plugin are recorded here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning is
 [semver](https://semver.org/).
 
+## [0.2.2] - 2026-11-14
+
+### Added
+
+- Chinese notes are now collected automatically, so a skill downloaded later
+  needs no code change: the host half reuses an author-written Chinese
+  description, falls back to a disk cache, then asks the machine's default
+  model (`llm.stream`, 12 skills per call) for a one-line Chinese summary, and
+  prefers the `translator` service when that bundle is installed.
+- `~/.dsh/skill-menu/zh.json` caches every generated note, keyed by a hash of
+  the skill name plus its description.
+- The panel refetches while notes are still being written (`zhPending`), so
+  rows fill in by themselves; the footer's coverage climbs to N/N.
+
+### Changed
+
+- A description only counts as Chinese when it has at least 12 CJK characters
+  making up 20% of the text, so English prose carrying a few Chinese words is
+  translated instead of shown raw.
+
 ## [0.2.1] - 2026-11-14
 
 ### Changed

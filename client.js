@@ -352,16 +352,33 @@ window.__ModuleLoader__.load({
 
     const entryOf = (skill) => CATALOG[skill && skill.name] || null
     const isCatalogued = (skill) => Boolean(entryOf(skill))
+    /** 宿主给的中文说明（作者自带的中文，或本机自动翻译的）。新下载的 skill 靠它。 */
+    const autoZh = (skill) => {
+      const value = skill && typeof skill.zh === 'string' ? skill.zh.trim() : ''
+      return value && hasCJK(value) ? value : ''
+    }
+    const zhOf = (skill) => {
+      const auto = autoZh(skill)
+      if (auto) return auto
+      const raw = String((skill && skill.description) || '')
+      return hasCJK(raw) ? oneLine(raw) : ''
+    }
+    const hasChinese = (skill) => isCatalogued(skill) || Boolean(zhOf(skill))
 
-    /** 列表第一行：做什么。未收录时取自带说明的第一句，英文标注原文。 */
+    /** 列表第一行：做什么。未收录时用自动中文，再退回自带原文。 */
     const shortOf = (skill) => {
       const entry = entryOf(skill)
       if (entry) return entry.short
+      const zh = zhOf(skill)
+      if (zh) {
+        const sentence = zh.split(/[。！？!?]\s*/)[0]
+        return sentence.length > 34 ? sentence.slice(0, 34) + '…' : sentence
+      }
       const raw = oneLine(skill && skill.description)
       if (!raw) return '这个技能没有自带说明'
       const sentence = raw.split(/[。.!?]\s*/)[0]
       const text = sentence.length > 34 ? sentence.slice(0, 34) + '…' : sentence
-      return hasCJK(raw) ? text : '暂未收录中文说明 · ' + text
+      return '说明翻译中 · ' + text
     }
 
     /** 列表第二行：什么时候用。未收录时不占位，避免空白。 */
@@ -378,14 +395,17 @@ window.__ModuleLoader__.load({
     const tipOf = (skill) => {
       const entry = entryOf(skill)
       const when = entry && Array.isArray(entry.when) ? entry.when.slice(0, 3) : []
+      const zh = entry ? '' : zhOf(skill)
       if (when.length === 0) {
-        const raw = oneLine(skill && (skill.whenToUse || skill.description))
+        const raw = oneLine(zh || (skill && (skill.whenToUse || skill.description)))
         if (raw) when.push(raw.length > 46 ? raw.slice(0, 46) + '…' : raw)
       }
       const io = entry ? entry.io : ''
-      const limit = !isCatalogued(skill) && !hasCJK(String(skill && skill.description || ''))
-        ? '原文为英文，本插件暂未收录中文说明'
-        : ''
+      let limit = ''
+      if (!entry) {
+        if (zh) limit = skill.zhSource === 'cache' ? '中文说明由本机自动翻译' : ''
+        else limit = '中文说明翻译中，稍后自动补上；先显示技能自带的原文'
+      }
       return { when, io, limit }
     }
 
@@ -605,6 +625,7 @@ window.__ModuleLoader__.load({
       const [tip, setTip] = React.useState(null)
       const [box, setBox] = React.useState(null)
       const [nonce, setNonce] = React.useState(0)
+      const [zhPending, setZhPending] = React.useState(0)
       const [query, setQuery] = React.useState('')
       const [sort, setSort] = React.useState(sortMode)
       const [pinVersion, setPinVersion] = React.useState(0)
@@ -613,6 +634,7 @@ window.__ModuleLoader__.load({
 
       const tipShowTimer = React.useRef(0)
       const tipHideTimer = React.useRef(0)
+      const zhTries = React.useRef(0)
       const stateRef = React.useRef({ flat: [] })
 
       const useLiveInput = typeof props.useInput === 'function' ? props.useInput : (() => null)
@@ -666,6 +688,7 @@ window.__ModuleLoader__.load({
             const rows = Array.isArray(payload.skills) ? payload.skills : []
             cache = { at: Date.now(), skills: rows }
             setSkills(rows)
+            setZhPending(payload.zhAvailable === false ? 0 : (Number(payload.zhPending) || 0))
             setError('')
           })
           .catch((reason) => {
@@ -674,6 +697,24 @@ window.__ModuleLoader__.load({
           .finally(() => { if (alive) setLoading(false) })
         return () => { alive = false }
       }, [open, sessionId, nonce])
+
+      // 宿主在后台自动翻译技能说明：还有待译条目就隔一会儿再拉一次，
+      // 译好一条换一条，面板不用关掉重开。最多补拉 60 次（约 90 秒），
+      // 翻译服务不通时自然停。
+      React.useEffect(() => {
+        if (!open || zhPending <= 0) return undefined
+        if (zhTries.current >= 60) return undefined
+        const timer = setTimeout(() => {
+          zhTries.current += 1
+          setNonce((value) => value + 1)
+        }, 1500)
+        return () => clearTimeout(timer)
+      }, [open, zhPending, nonce])
+
+      React.useEffect(() => {
+        if (open) return
+        zhTries.current = 0
+      }, [open])
 
       // 点面板外 / Esc 收起。
       React.useEffect(() => {
@@ -780,7 +821,7 @@ window.__ModuleLoader__.load({
 
       const usable = skills.filter((skill) => skill.userInvocable !== false)
       const listed = skills
-      const catalogued = listed.filter((skill) => isCatalogued(skill)).length
+      const catalogued = listed.filter((skill) => hasChinese(skill)).length
       const pinnedNames = pins.slice()
       const now = Date.now()
 

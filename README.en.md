@@ -10,7 +10,7 @@ The plugin is a DSH bundle: one half runs in the host process and fetches the da
 
 ## The problem it solves
 
-A DSH install usually carries dozens of skills — 43 are invocable on this machine, 10 bundled with the release and the rest from the user directory, project directories and third-party plugins. Using the `/` menu or recalling names runs into three concrete problems:
+A DSH install usually carries dozens of skills — 59 are invocable on this machine, 10 bundled with the release and the rest from the user directory, project directories and third-party plugins. Using the `/` menu or recalling names runs into three concrete problems:
 
 - Names and descriptions are in English. `dsh-doc` and `find-skills` are guessable; `grill-me`, `context-compression` and `nature-paper-xray` are not.
 - Frequently used skills sit next to ones touched once a year. The default order is alphabetical, which buries `office` and `dsh-doc` in the middle.
@@ -37,7 +37,7 @@ The panel is registered in `conversation.input.overlay`, floats above the compos
 | Header | `技能库`, `<N> available`, three sort modes (recommended / name / recent), close button |
 | Search box | filters as you type, ✕ clears |
 | List | sections per the active sort; three lines plus a source tag per row |
-| Footer | hint, Chinese-description coverage (`中文说明 43/43`), `清空记录` when there is history |
+| Footer | hint, Chinese-description coverage (`中文说明 59/59`), `清空记录` when there is history |
 
 Each row has three lines: the skill name, what it does, and when to use it. The tag on the right says where it came from: bundled / custom / user / project / runtime / skills-manager.
 
@@ -75,7 +75,7 @@ Typing `PPT` switches to search results and returns four rows: `office-pptx`, `g
 
 Data comes from the DSH `skills` service rather than from scanning directories. The list means "skills this session can invoke":
 
-- The request carries `sessionId`; the host resolves the session's Agent and uses the Agent as the scope. That choice decides the count: the global scope alone returns 12 rows, the session scope returns 43.
+- The request carries `sessionId`; the host resolves the session's Agent and uses the Agent as the scope. That choice decides the count: the global scope alone returns 12 rows, the session scope returns 59.
 - Rows with `userInvocable: false` are hidden, since they cannot be invoked anyway.
 - Skills contributed by the `dsh-skills-manager` plugin are recognised separately (`provider === 'dsh-skills-manager-external'`), plus a scan of `SKILL.md` files under `~/.dsh/skills-manager`; those rows are tagged `技能管家`.
 
@@ -89,7 +89,9 @@ The chosen mode is stored in `localStorage` and reused next time.
 
 ### Chinese notes
 
-`client.js` holds a 43-entry `CATALOG`, each entry with five fields:
+Two layers, neither needing manual upkeep.
+
+**Layer one: the curated table.** `client.js` holds a 43-entry `CATALOG` for the common skills, each entry with five fields:
 
 | Field | Purpose |
 | --- | --- |
@@ -99,7 +101,15 @@ The chosen mode is stored in `localStorage` and reused next time.
 | `io` | the "needs · returns" part of the hover note |
 | `cat` / `weight` | category and common-list weight |
 
-Skills missing from the table fall back to their own `description`; English ones are marked as untranslated rather than given a made-up translation. The footer coverage is simply how many rows have an entry.
+**Layer two: automatic pickup.** Any skill missing from the table — including everything you download later — is filled in by the host half without touching code:
+
+1. a description the author already wrote in Chinese is used as-is (kept only when it has ≥ 12 CJK characters and they are ≥ 20% of the text, so English prose with a few Chinese words is not mistaken for Chinese);
+2. otherwise the local cache at `~/.dsh/skill-menu/zh.json` is consulted;
+3. otherwise the machine's default model rewrites the English description as one Chinese sentence, 12 skills per call. The cache key hashes the name plus the description, so an updated description is translated again;
+4. when a bundle providing the `translator` service is installed, that service is used first, sparing the conversation model;
+5. when no model is available the original text stays, the row says 说明翻译中, and the panel refetches every 1.5 s so finished notes drop in by themselves.
+
+Notes missing on the first open are filled in the background; the footer's `中文说明 N/M` climbs to M/M on its own.
 
 ### What a click does
 
@@ -228,7 +238,7 @@ Constants at the top of `client.js`; a reload applies them:
 
 - The data route `/dsh-skill-menu/list` accepts loopback requests only (`127.0.0.1`, `::1`) and only GET; anything else gets 403. No list data leaves the machine.
 - UI text is Chinese by design; `locale/*.json` only provides the Plugins-page title and description. Changing the UI language means editing `client.js`.
-- The Chinese notes are a built-in table. Newly installed skills have no note until one is added to `CATALOG`; until then they show their English description.
+- Automatic notes cost one call to the machine's default model (12 skills per call, results cached on disk). Without a model the rows keep the original text and say so instead of inventing a translation.
 - Usage counts, pins and sort preference live in browser `localStorage` and reset with the profile.
 - The list is fetched when the panel opens; after adding or removing skills just reopen the panel, no DSH restart needed.
 - Read-only: the plugin never opens or modifies skill files.
