@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Skill menu">
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="#eef2ff"/>
+  <path d="M30 12l4.2 10.6L45 26.8l-10.8 4.2L30 42l-4.2-11L15 26.8l10.8-4.2L30 12z" fill="#3b5bdb"/>
+  <path d="M46 36l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5z" fill="#5c7cfa" opacity="0.75"/>
+</svg>

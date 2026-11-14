@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "技能菜单",
+    "description": "在输入框左侧加一个 skill 按钮：按常用与分类列出可调用技能，悬停看四段中文说明，点击直接调用。",
+    "detail": "docs/DETAIL.md"
+  }
+}

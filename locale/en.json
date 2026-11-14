@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Skill menu",
+    "description": "A skill button beside the composer: browse invocable skills by usage and category, hover for a Chinese description, click to invoke.",
+    "detail": "docs/DETAIL.md"
+  }
+}
