@@ -1,6 +1,6 @@
 {
   "name": "@qiejianchuangyi/dsh-skill-menu",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Skill menu in the composer: lists installed skills, shows a Chinese note on hover, and invokes one into the conversation.",

@@ -4,6 +4,16 @@ All notable changes to this plugin are recorded here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning is
 [semver](https://semver.org/).
 
+## [0.2.1] - 2026-11-14
+
+### Changed
+
+- README rewritten (zh + en): fuller description of every feature, a new
+  "how it works" section covering the host route, session scope resolution,
+  portal rendering and click dispatch, plus a configuration table.
+- README image set grown from one screenshot to five: composer trigger,
+  panel, hover note, name-sorted list, search results.
+
 ## [0.2.0] - 2026-11-14
 
 ### Added
